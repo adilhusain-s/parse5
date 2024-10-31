@@ -1,9 +1,11 @@
 name: Node.js CI
 
 on:
+    workflow_dispatch:
+
     push:
         branches-ignore:
-            - 'dependabot/**'
+            - "dependabot/**"
     pull_request:
 
 env:
@@ -12,47 +14,66 @@ env:
     NODE_COV: lts/* # The Node.js version to run coveralls on
 
 permissions:
-    contents: read #  to fetch code (actions/checkout)
+    contents: read # to fetch code (actions/checkout)
 
 jobs:
     lint:
-        runs-on: ubuntu-latest
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                include:
+                    - os: ubuntu-22.04
+                      architecture: x64
+                    - os: ubuntu-22.04-ppc64le
+                      architecture: ppc64le
+
         steps:
-            - uses: actions/checkout@v4.2.2
+            - uses: actions/checkout@v4.2.1
               with:
                   submodules: recursive
-            - name: Use Node.js ${{ matrix.node }}
-              uses: actions/setup-node@v4.1.0
+            - name: Use Node.js
+              uses: actions/setup-node@v4
               with:
-                  node-version: lts/*
+                  node-version: 20
+                  architecture: ${{ matrix.architecture }}
                   cache: npm
             - run: npm ci
             - run: npm run lint
 
     test:
         permissions:
-            contents: read #  to fetch code (actions/checkout)
-            checks: write #  to create new checks (coverallsapp/github-action)
+            contents: read # to fetch code (actions/checkout)
+            checks: write # to create new checks (coverallsapp/github-action)
 
-        name: Node ${{ matrix.node }}
-        runs-on: ubuntu-latest
+        name: Node ${{ matrix.node }} on ${{ matrix.os }}
+        runs-on: ${{ matrix.os }}
 
         strategy:
             fail-fast: false
             matrix:
-                node:
-                    - 18
-                    - 20
-                    - lts/*
+                include:
+                    - os: ubuntu-22.04
+                      architecture: x64
+                      node: 18
+                    - os: ubuntu-22.04
+                      architecture: x64
+                      node: 20
+                    - os: ubuntu-22.04-ppc64le
+                      architecture: ppc64le
+                      node: 18
+                    - os: ubuntu-22.04-ppc64le
+                      architecture: ppc64le
+                      node: 20
 
         steps:
-            - uses: actions/checkout@v4.2.2
+            - uses: actions/checkout@v4.2.1
               with:
                   submodules: recursive
-            - name: Use Node.js ${{ matrix.node }}
-              uses: actions/setup-node@v4.1.0
+            - name: Use Node.js
+              uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node }}
+                  architecture: ${{ matrix.architecture }}
                   cache: npm
             - run: npm ci
             - run: npm run build --if-present
@@ -66,8 +87,8 @@ jobs:
               if: matrix.node == env.NODE_COV
 
             - name: Run Coveralls
-              uses: coverallsapp/github-action@v2.3.3
+              uses: coverallsapp/github-action@v2.3.1
               if: matrix.node == env.NODE_COV
               continue-on-error: true
               with:
-                  github-token: '${{ secrets.GITHUB_TOKEN }}'
+                  github-token: "${{ secrets.GITHUB_TOKEN }}"
